@@ -10,10 +10,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Turf } from "@shared/schema";
 
-const sportFilters = ["All", "Football", "Cricket", "Basketball", "Tennis", "Badminton"];
+const sportFilters = ["Cricket", "All", "Football", "Basketball", "Tennis", "Badminton"];
 
 export default function Home() {
-  const [activeFilter, setActiveFilter] = useState("All");
+  const [activeFilter, setActiveFilter] = useState("Cricket");
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: turfs, isLoading } = useQuery<Turf[]>({
@@ -23,7 +23,7 @@ export default function Home() {
   const featuredTurfs = turfs?.filter((t) => t.featured) || [];
   const availableTurfs = turfs?.filter((t) => t.isAvailable) || [];
   
-  const filteredTurfs = activeFilter === "All" 
+  const filteredTurfs = activeFilter === "All" || activeFilter === "Cricket"
     ? availableTurfs 
     : availableTurfs.filter((t) => t.sportTypes.includes(activeFilter));
 
