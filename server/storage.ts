@@ -4,8 +4,130 @@ import {
   type TimeSlot, type InsertTimeSlot,
   type Booking, type InsertBooking
 } from "@shared/schema";
+import { supabase } from "./index";
 import { randomUUID } from "crypto";
 import { addDays, format, startOfToday } from "date-fns";
+
+export interface IStorage {
+  // Users
+  getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  
+  // Turfs
+  getTurfs(): Promise<Turf[]>;
+  getTurf(id: string): Promise<Turf | undefined>;
+  createTurf(turf: InsertTurf): Promise<Turf>;
+  
+  // Time Slots
+  getTimeSlots(turfId: string, date: string): Promise<TimeSlot[]>;
+  getTimeSlot(id: string): Promise<TimeSlot | undefined>;
+  createTimeSlot(slot: InsertTimeSlot): Promise<TimeSlot>;
+  bookTimeSlot(id: string): Promise<TimeSlot | undefined>;
+  
+  // Bookings
+  getBookings(): Promise<Booking[]>;
+  getBooking(id: string): Promise<Booking | undefined>;
+  createBooking(booking: InsertBooking): Promise<Booking>;
+}
+
+export class DbStorage implements IStorage {
+  // Users
+  async getUser(id: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result[0];
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.username, username));
+    return result[0];
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = randomUUID();
+    const user: User = { ...insertUser, id };
+    await db.insert(users).values(user);
+    return user;
+  }
+
+  // Turfs
+  async getTurfs(): Promise<Turf[]> {
+    try {
+      console.log("Fetching turfs from Supabase...");
+      const { data, error } = await supabase
+        .from('turfs')
+        .select('*');
+      
+      if (error) throw error;
+      console.log("Fetched turfs:", data?.length || 0);
+      return data || [];
+    } catch (error) {
+      console.error("Database error in getTurfs:", error);
+      throw error;
+    }
+  }
+
+  async getTurf(id: string): Promise<Turf | undefined> {
+    const result = await db.select().from(turfs).where(eq(turfs.id, id));
+    return result[0];
+  }
+
+  async createTurf(insertTurf: InsertTurf): Promise<Turf> {
+    const id = randomUUID();
+    const turf: Turf = { ...insertTurf, id };
+    await db.insert(turfs).values(turf);
+    return turf;
+  }
+
+  // Time Slots
+  async getTimeSlots(turfId: string, date: string): Promise<TimeSlot[]> {
+    return await db.select().from(timeSlots).where(
+      and(eq(timeSlots.turfId, turfId), eq(timeSlots.date, date))
+    );
+  }
+
+  async getTimeSlot(id: string): Promise<TimeSlot | undefined> {
+    const result = await db.select().from(timeSlots).where(eq(timeSlots.id, id));
+    return result[0];
+  }
+
+  async createTimeSlot(insertSlot: InsertTimeSlot): Promise<TimeSlot> {
+    const id = randomUUID();
+    const slot: TimeSlot = { ...insertSlot, id };
+    await db.insert(timeSlots).values(slot);
+    return slot;
+  }
+
+  async bookTimeSlot(id: string): Promise<TimeSlot | undefined> {
+    const result = await db
+      .update(timeSlots)
+      .set({ isBooked: true })
+      .where(eq(timeSlots.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Bookings
+  async getBookings(): Promise<Booking[]> {
+    return await db.select().from(bookings);
+  }
+
+  async getBooking(id: string): Promise<Booking | undefined> {
+    const result = await db.select().from(bookings).where(eq(bookings.id, id));
+    return result[0];
+  }
+
+  async createBooking(insertBooking: InsertBooking): Promise<Booking> {
+    const id = randomUUID();
+    const booking: Booking = { 
+      ...insertBooking, 
+      id,
+      createdAt: new Date(),
+    };
+    await db.insert(bookings).values(booking);
+    return booking;
+  }
+}
 
 export interface IStorage {
   // Users
@@ -289,4 +411,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DbStorage();

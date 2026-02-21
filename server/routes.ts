@@ -1,12 +1,39 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertBookingSchema } from "@shared/schema";
+import { insertBookingSchema, insertUserSchema } from "@shared/schema";
+import { supabase } from "./index";
+
+// Middleware to verify Supabase JWT
+const requireAuth = async (req: any, res: any, next: any) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+
+  const token = authHeader.substring(7);
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    req.user = user;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Token verification failed' });
+  }
+};
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Auth routes - these will be handled by Supabase on the client side
+  // But we can add server-side verification endpoints if needed
+
+  app.post("/api/auth/verify", requireAuth, (req, res) => {
+    res.json({ user: req.user });
+  });
   // Get all turfs
   app.get("/api/turfs", async (req, res) => {
     try {
@@ -41,7 +68,7 @@ export async function registerRoutes(
   });
 
   // Get all bookings
-  app.get("/api/bookings", async (req, res) => {
+  app.get("/api/bookings", requireAuth, async (req, res) => {
     try {
       const bookings = await storage.getBookings();
       res.json(bookings);
@@ -51,7 +78,7 @@ export async function registerRoutes(
   });
 
   // Get a single booking
-  app.get("/api/bookings/:id", async (req, res) => {
+  app.get("/api/bookings/:id", requireAuth, async (req, res) => {
     try {
       const booking = await storage.getBooking(req.params.id);
       if (!booking) {
@@ -64,7 +91,7 @@ export async function registerRoutes(
   });
 
   // Create a new booking
-  app.post("/api/bookings", async (req, res) => {
+  app.post("/api/bookings", requireAuth, async (req, res) => {
     try {
       const validatedData = insertBookingSchema.parse(req.body);
       const booking = await storage.createBooking(validatedData);

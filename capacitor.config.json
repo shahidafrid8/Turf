@@ -1,0 +1,6 @@
+{
+  "appId": "com.turftime.app",
+  "appName": "TurfTime",
+  "webDir": "dist/public",
+  "bundledWebRuntime": false
+}
