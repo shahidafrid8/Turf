@@ -309,6 +309,76 @@ export async function registerRoutes(
     } catch (e: any) { res.status(400).json({ error: e?.message || "Failed to save review" }); }
   });
 
+  // ── ADMIN: OWNER APPROVAL ROUTES ──────────────────────────────────────────
+  // Get all pending owners
+  app.get("/api/admin/owners/pending", async (_req, res) => {
+    try {
+      const owners = await storage.getPendingOwners();
+      res.json(owners);
+    } catch (e) { res.status(500).json({ error: "Failed to fetch pending owners" }); }
+  });
+
+  // Approve owner
+  app.patch("/api/admin/owners/:username/approve", async (req, res) => {
+    try {
+      const user = await storage.approveOwner(req.params.username);
+      if (!user) return res.status(404).json({ error: "Owner not found" });
+      res.json(user);
+    } catch (e) { res.status(500).json({ error: "Failed to approve owner" }); }
+  });
+
+  // Reject owner
+  app.patch("/api/admin/owners/:username/reject", async (req, res) => {
+    try {
+      const user = await storage.rejectOwner(req.params.username);
+      if (!user) return res.status(404).json({ error: "Owner not found" });
+      res.json(user);
+    } catch (e) { res.status(500).json({ error: "Failed to reject owner" }); }
+  });
+
+  // ── ADMIN: TURF APPROVAL ROUTES ──────────────────────────────────────────
+  // Get all pending turfs
+  app.get("/api/admin/turfs/pending", async (_req, res) => {
+    try {
+      const turfs = await storage.getPendingTurfs();
+      res.json(turfs);
+    } catch (e) { res.status(500).json({ error: "Failed to fetch pending turfs" }); }
+  });
+
+  // Get all turfs (admin view)
+  app.get("/api/admin/turfs", async (_req, res) => {
+    try {
+      res.json(await storage.getAllTurfs());
+    } catch (e) { res.status(500).json({ error: "Failed to fetch turfs" }); }
+  });
+
+  // Approve turf
+  app.patch("/api/admin/turfs/:id/approve", async (req, res) => {
+    try {
+      const turf = await storage.approveTurf(req.params.id);
+      if (!turf) return res.status(404).json({ error: "Turf not found" });
+      res.json(turf);
+    } catch (e) { res.status(500).json({ error: "Failed to approve turf" }); }
+  });
+
+  // Reject turf
+  app.patch("/api/admin/turfs/:id/reject", async (req, res) => {
+    try {
+      const turf = await storage.rejectTurf(req.params.id);
+      if (!turf) return res.status(404).json({ error: "Turf not found" });
+      res.json(turf);
+    } catch (e) { res.status(500).json({ error: "Failed to reject turf" }); }
+  });
+
+  // ── USER STATUS CHECK (owner pending page) ───────────────────────────────
+  app.get("/api/users/status/:id", async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      res.json({ ownerStatus: user.ownerStatus, role: user.role });
+    } catch (e) { res.status(500).json({ error: "Failed to fetch user status" }); }
+  });
+
   // ── DB STATUS ─────────────────────────────────────────────────────────────
   app.get("/api/db-status", (_req, res) => {
     res.json({ connected: isDatabaseAvailable() });
