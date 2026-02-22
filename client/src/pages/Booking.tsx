@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Share2, Star, MapPin, Car, Wifi, Droplets, Clock, Users } from "lucide-react";
+import { ArrowLeft, Share2, Star, MapPin, Car, Wifi, Droplets, Clock, Users, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,24 @@ export default function Booking() {
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [duration, setDuration] = useState("60");
 
+  const favKey = `fav_${id}`;
+  const [isFav, setIsFav] = useState(() => localStorage.getItem(favKey) === "1");
+
+  const toggleFav = () => {
+    const next = !isFav;
+    setIsFav(next);
+    if (next) {
+      localStorage.setItem(favKey, "1");
+      // Store basic turf info for the Favorites page
+      const favList: string[] = JSON.parse(localStorage.getItem("favIds") || "[]");
+      if (!favList.includes(id!)) { favList.push(id!); localStorage.setItem("favIds", JSON.stringify(favList)); }
+    } else {
+      localStorage.removeItem(favKey);
+      const favList: string[] = JSON.parse(localStorage.getItem("favIds") || "[]");
+      localStorage.setItem("favIds", JSON.stringify(favList.filter(f => f !== id)));
+    }
+  };
+
   const { data: turf, isLoading: turfLoading } = useQuery<Turf>({
     queryKey: [`/api/turfs/${id}`],
   });
@@ -34,6 +52,8 @@ export default function Booking() {
   const { data: slots, isLoading: slotsLoading } = useQuery<TimeSlot[]>({
     queryKey: [`/api/turfs/${id}/slots/${dateStr}`],
     enabled: !!id,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const totalPrice = useMemo(() => {
@@ -45,14 +65,20 @@ export default function Booking() {
   const handleProceedToPayment = () => {
     if (!turf || !selectedSlot) return;
     
+    // Compute real endTime based on duration (not just the 1-hour slot end)
+    const durationMins = parseInt(duration);
+    const [startH, startM] = selectedSlot.startTime.split(':').map(Number);
+    const totalMins = startH * 60 + startM + durationMins;
+    const computedEndTime = `${String(Math.floor(totalMins / 60)).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`;
+
     const bookingData = {
       turfId: turf.id,
       turfName: turf.name,
       turfAddress: turf.address,
       date: format(selectedDate, "yyyy-MM-dd"),
       startTime: selectedSlot.startTime,
-      endTime: selectedSlot.endTime,
-      duration: parseInt(duration),
+      endTime: computedEndTime,
+      duration: durationMins,
       totalAmount: totalPrice,
       slotId: selectedSlot.id,
     };
@@ -109,14 +135,25 @@ export default function Booking() {
             <ArrowLeft className="w-5 h-5 text-white" />
           </Button>
           
-          <Button 
-            size="icon" 
-            variant="secondary"
-            className="bg-black/40 backdrop-blur-sm border-none"
-            data-testid="button-share"
-          >
-            <Share2 className="w-5 h-5 text-white" />
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="icon"
+              variant="secondary"
+              className="bg-black/40 backdrop-blur-sm border-none"
+              onClick={toggleFav}
+              data-testid="button-favourite"
+            >
+              <Heart className={`w-5 h-5 transition-colors ${isFav ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+            </Button>
+            <Button 
+              size="icon" 
+              variant="secondary"
+              className="bg-black/40 backdrop-blur-sm border-none"
+              data-testid="button-share"
+            >
+              <Share2 className="w-5 h-5 text-white" />
+            </Button>
+          </div>
         </header>
       </div>
 
@@ -133,8 +170,14 @@ export default function Booking() {
             </div>
             
             <div className="flex items-center gap-1 bg-card px-3 py-1.5 rounded-full">
-              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-              <span className="font-semibold">{turf.rating}</span>
+              {turf.rating > 0 ? (
+                <>
+                  <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                  <span className="font-semibold">{turf.rating}</span>
+                </>
+              ) : (
+                <span className="text-xs text-muted-foreground font-medium px-1">New</span>
+              )}
             </div>
           </div>
           

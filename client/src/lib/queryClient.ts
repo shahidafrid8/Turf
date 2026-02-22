@@ -1,5 +1,11 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// When running in the Android APK, relative URLs won't resolve because there's
+// no local server. Set VITE_API_BASE_URL to your deployed backend URL.
+// e.g. https://your-app.railway.app
+// In local dev this is empty, so relative paths continue to work as before.
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) ?? "";
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -12,7 +18,7 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  const res = await fetch(`${API_BASE}${url}`, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -29,7 +35,10 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const url = (queryKey[0] as string).startsWith("http")
+      ? (queryKey.join("/") as string)
+      : `${API_BASE}${queryKey.join("/")}`;
+    const res = await fetch(url, {
       credentials: "include",
     });
 

@@ -2,6 +2,7 @@ import { config } from "dotenv";
 config(); // Load .env file
 
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -22,8 +23,18 @@ declare module "http" {
   }
 }
 
+// Allow cross-origin requests — required for the Android APK (Capacitor)
+// which runs from a different origin than the API server.
+app.use(
+  cors({
+    origin: true, // reflect any origin; lock this down to your domain in production
+    credentials: true,
+  })
+);
+
 app.use(
   express.json({
+    limit: '15mb',
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },

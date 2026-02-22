@@ -158,7 +158,7 @@ export function AuthForm({ mode, onToggleMode }: AuthFormProps) {
             <p className="text-sm text-muted-foreground">
               {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}
               <Button
-                variant="link"
+                variant="ghost"
                 className="p-0 h-auto ml-1 text-primary hover:text-primary/80"
                 onClick={onToggleMode}
               >

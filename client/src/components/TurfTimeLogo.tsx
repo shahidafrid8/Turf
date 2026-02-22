@@ -1,9 +1,10 @@
 interface TurfTimeLogoProps {
   size?: "sm" | "md" | "lg";
   showText?: boolean;
+  className?: string;
 }
 
-export function TurfTimeLogo({ size = "md", showText = true }: TurfTimeLogoProps) {
+export function TurfTimeLogo({ size = "md", showText = true, className }: TurfTimeLogoProps) {
   const sizes = {
     sm: { icon: 28, text: "text-lg" },
     md: { icon: 36, text: "text-xl" },
@@ -13,7 +14,7 @@ export function TurfTimeLogo({ size = "md", showText = true }: TurfTimeLogoProps
   const { icon, text } = sizes[size];
 
   return (
-    <div className="flex items-center gap-2" data-testid="logo-turftime">
+    <div className={`flex items-center gap-2 ${className || ""}`} data-testid="logo-turftime">
       <div className="relative">
         <svg
           width={icon}

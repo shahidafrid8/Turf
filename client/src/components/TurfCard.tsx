@@ -1,4 +1,5 @@
-import { Star, MapPin, Clock } from "lucide-react";
+import { useState } from "react";
+import { Star, MapPin, Heart } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,29 @@ interface TurfCardProps {
   variant?: "featured" | "list";
 }
 
+function useFav(id: string) {
+  const [isFav, setIsFav] = useState(() => localStorage.getItem(`fav_${id}`) === "1");
+  const toggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = !isFav;
+    setIsFav(next);
+    localStorage.setItem(`fav_${id}`, next ? "1" : "0");
+    const favList: string[] = JSON.parse(localStorage.getItem("favIds") || "[]");
+    if (next) {
+      if (!favList.includes(id)) { favList.push(id); }
+    } else {
+      const idx = favList.indexOf(id);
+      if (idx !== -1) favList.splice(idx, 1);
+    }
+    localStorage.setItem("favIds", JSON.stringify(favList));
+  };
+  return { isFav, toggle };
+}
+
 export function TurfCard({ turf, variant = "list" }: TurfCardProps) {
+  const { isFav, toggle } = useFav(turf.id);
+
   if (variant === "featured") {
     return (
       <Link href={`/booking/${turf.id}`}>
@@ -40,9 +63,17 @@ export function TurfCard({ turf, variant = "list" }: TurfCardProps) {
             </div>
           </div>
           
-          <div className="absolute top-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full">
-            <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-            <span className="text-white text-xs font-medium">{turf.rating}</span>
+          <div className="absolute top-3 right-3 flex items-center gap-2">
+            <button
+              onClick={toggle}
+              className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center"
+            >
+              <Heart className={`w-3.5 h-3.5 transition-colors ${isFav ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+            </button>
+            <div className="flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full">
+              <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+              <span className="text-white text-xs font-medium">{turf.rating > 0 ? turf.rating : 'New'}</span>
+            </div>
           </div>
         </Card>
       </Link>
@@ -71,9 +102,14 @@ export function TurfCard({ turf, variant = "list" }: TurfCardProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <h3 className="font-semibold text-foreground truncate">{turf.name}</h3>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-              <span className="text-sm text-muted-foreground">{turf.rating}</span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button onClick={toggle} className="p-1">
+                <Heart className={`w-4 h-4 transition-colors ${isFav ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} />
+              </button>
+              <div className="flex items-center gap-1">
+                <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+                <span className="text-sm text-muted-foreground">{turf.rating > 0 ? turf.rating : 'New'}</span>
+              </div>
             </div>
           </div>
           

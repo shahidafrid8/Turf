@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, CreditCard, Smartphone, Wallet, Shield, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Booking, InsertBooking } from "@shared/schema";
 
 interface PendingBooking {
@@ -30,10 +31,12 @@ const paymentMethods = [
 
 export default function Payment() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [pendingBooking, setPendingBooking] = useState<PendingBooking | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("upi");
   const [promoCode, setPromoCode] = useState("");
   const [promoExpanded, setPromoExpanded] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const stored = sessionStorage.getItem("pendingBooking");
@@ -47,9 +50,11 @@ export default function Payment() {
   const createBookingMutation = useMutation({
     mutationFn: async (bookingData: InsertBooking) => {
       const response = await apiRequest("POST", "/api/bookings", bookingData);
-      return response as Booking;
+      return await response.json() as Booking;
     },
     onSuccess: (booking) => {
+      // Invalidate slot cache for this turf+date so booked slots show immediately
+      queryClient.invalidateQueries({ queryKey: [`/api/turfs/${booking.turfId}/slots/${booking.date}`] });
       sessionStorage.removeItem("pendingBooking");
       sessionStorage.setItem("confirmedBooking", JSON.stringify(booking));
       setLocation("/confirmation");
@@ -67,6 +72,7 @@ export default function Payment() {
     const bookingCode = `TT${Date.now().toString(36).toUpperCase()}`;
     
     const bookingData: InsertBooking = {
+      userId: user?.id ?? null,
       turfId: pendingBooking.turfId,
       turfName: pendingBooking.turfName,
       turfAddress: pendingBooking.turfAddress,
