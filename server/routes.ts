@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertBookingSchema, insertTurfSchema, insertPaymentMethodSchema, insertReviewSchema, admins } from "@shared/schema";
 import { getDb, getSql } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   getPreferences, savePreferences,
   getPaymentMethods, addPaymentMethod, removePaymentMethod, setDefaultPaymentMethod,
@@ -313,14 +313,16 @@ export async function registerRoutes(
   // Get all pending owners — reads directly from Supabase auth.users table
   app.get("/api/admin/owners/pending", async (_req, res) => {
     try {
-      const sql = getSql();
-      const rows = await sql`
-        SELECT id, email, raw_user_meta_data
-        FROM auth.users
-        WHERE raw_user_meta_data->>'role' = 'owner'
-          AND (raw_user_meta_data->>'ownerStatus' = 'pending' OR raw_user_meta_data->>'ownerStatus' IS NULL)
-        ORDER BY created_at DESC
-      `;
+      const db = getDb();
+      const result = await db.execute(
+        sql`SELECT id, email, raw_user_meta_data
+            FROM auth.users
+            WHERE raw_user_meta_data->>'role' = 'owner'
+              AND (raw_user_meta_data->>'ownerStatus' = 'pending'
+                   OR raw_user_meta_data->>'ownerStatus' IS NULL)
+            ORDER BY created_at DESC`
+      );
+      const rows = result as any[];
       const mapped = rows.map((r: any) => ({
         id: r.id,
         username: r.id,
@@ -339,12 +341,13 @@ export async function registerRoutes(
   // Approve owner — updates Supabase auth metadata
   app.patch("/api/admin/owners/:id/approve", async (req, res) => {
     try {
-      const sql = getSql();
-      await sql`
-        UPDATE auth.users
-        SET raw_user_meta_data = raw_user_meta_data || '{"ownerStatus": "approved"}'::jsonb
-        WHERE id = ${req.params.id}
-      `;
+      const db = getDb();
+      const uid = req.params.id;
+      await db.execute(
+        sql`UPDATE auth.users
+            SET raw_user_meta_data = raw_user_meta_data || '{"ownerStatus": "approved"}'::jsonb
+            WHERE id = ${uid}`
+      );
       res.json({ success: true, ownerStatus: "approved" });
     } catch (e: any) {
       console.error("Approve owner error:", e?.message || e);
@@ -355,12 +358,13 @@ export async function registerRoutes(
   // Reject owner — updates Supabase auth metadata
   app.patch("/api/admin/owners/:id/reject", async (req, res) => {
     try {
-      const sql = getSql();
-      await sql`
-        UPDATE auth.users
-        SET raw_user_meta_data = raw_user_meta_data || '{"ownerStatus": "rejected"}'::jsonb
-        WHERE id = ${req.params.id}
-      `;
+      const db = getDb();
+      const uid = req.params.id;
+      await db.execute(
+        sql`UPDATE auth.users
+            SET raw_user_meta_data = raw_user_meta_data || '{"ownerStatus": "rejected"}'::jsonb
+            WHERE id = ${uid}`
+      );
       res.json({ success: true, ownerStatus: "rejected" });
     } catch (e: any) {
       console.error("Reject owner error:", e?.message || e);
