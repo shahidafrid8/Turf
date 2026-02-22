@@ -9,7 +9,34 @@ import { AuthGuard } from "@/components/AuthGuard";
 import { AuthForm } from "@/components/AuthForm";
 import ProfileSetup from "@/pages/ProfileSetup";
 import OwnerPendingApproval from "@/pages/owner/OwnerPendingApproval";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Component, ReactNode } from "react";
+
+// ── Global Error Boundary ────────────────────────────────────────────────────
+// Prevents uncaught JS errors from turning the whole screen black.
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center text-3xl">⚠️</div>
+          <h2 className="text-lg font-semibold text-foreground">Something went wrong</h2>
+          <p className="text-sm text-muted-foreground">Please check your internet connection and try again.</p>
+          <button
+            className="mt-2 px-6 py-2 rounded-xl bg-primary text-black font-semibold text-sm"
+            onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
+          >Reload</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // User pages
 import Home from "@/pages/Home";
 import Search from "@/pages/Search";
@@ -152,14 +179,16 @@ function AppContent() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <AppContent />
-          <Toaster />
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <AppContent />
+            <Toaster />
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
