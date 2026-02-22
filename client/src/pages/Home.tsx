@@ -42,8 +42,12 @@ export default function Home() {
 
   const { data: turfs = [], isLoading } = useQuery<Turf[]>({
     queryKey: ["/api/turfs", selectedCity],
-    queryFn: () =>
-      fetch(`/api/turfs?city=${encodeURIComponent(selectedCity)}`).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/turfs?city=${encodeURIComponent(selectedCity)}`);
+      if (!r.ok) return [];
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const displayName = fullName || user?.email?.split("@")[0] || "User";
@@ -56,10 +60,10 @@ export default function Home() {
 
   const searched = searchQuery
     ? sportFiltered.filter(
-        t =>
-          t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.location.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      t =>
+        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.location.toLowerCase().includes(searchQuery.toLowerCase())
+    )
     : sportFiltered;
 
   const featuredTurfs = searched.filter(t => t.featured);
@@ -128,9 +132,8 @@ export default function Home() {
                         }}
                       >
                         <Check
-                          className={`mr-2 h-4 w-4 ${
-                            city === selectedCity ? "opacity-100 text-primary" : "opacity-0"
-                          }`}
+                          className={`mr-2 h-4 w-4 ${city === selectedCity ? "opacity-100 text-primary" : "opacity-0"
+                            }`}
                         />
                         {city}
                       </CommandItem>
@@ -180,20 +183,20 @@ export default function Home() {
             <div className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
               {isLoading
                 ? Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton
-                      key={i}
-                      className="min-w-[260px] h-[180px] rounded-xl flex-shrink-0"
-                    />
-                  ))
+                  <Skeleton
+                    key={i}
+                    className="min-w-[260px] h-[180px] rounded-xl flex-shrink-0"
+                  />
+                ))
                 : featuredTurfs.map((turf, i) => (
-                    <div
-                      key={turf.id}
-                      className="animate-slide-up flex-shrink-0"
-                      style={{ animationDelay: `${i * 80}ms` }}
-                    >
-                      <TurfCard turf={turf} variant="featured" />
-                    </div>
-                  ))}
+                  <div
+                    key={turf.id}
+                    className="animate-slide-up flex-shrink-0"
+                    style={{ animationDelay: `${i * 80}ms` }}
+                  >
+                    <TurfCard turf={turf} variant="featured" />
+                  </div>
+                ))}
             </div>
           </section>
         )}
