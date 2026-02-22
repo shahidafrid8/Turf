@@ -157,13 +157,13 @@ export default function AdminPendingApprovals() {
                     <Button
                       variant="outline"
                       className="border-destructive text-destructive hover:bg-destructive/10"
-                      onClick={() => rejectOwnerMutation.mutate(owner.username)}
+                      onClick={() => rejectOwnerMutation.mutate(owner.id)}
                       disabled={rejectOwnerMutation.isPending || approveOwnerMutation.isPending}
                     >
                       <XCircle className="w-4 h-4 mr-2" /> Reject
                     </Button>
                     <Button
-                      onClick={() => approveOwnerMutation.mutate(owner.username)}
+                      onClick={() => approveOwnerMutation.mutate(owner.id)}
                       disabled={approveOwnerMutation.isPending || rejectOwnerMutation.isPending}
                       className="gap-2"
                     >
@@ -211,7 +211,7 @@ export default function AdminPendingApprovals() {
                       </div>
                       <div className="bg-muted/50 rounded-lg py-2">
                         <p className="text-xs text-muted-foreground">Hours</p>
-                        <p className="font-bold text-foreground text-sm">{turf.openingTime}-{turf.closingTime ? turf.closingTime.substring(0,5) : ''}</p>
+                        <p className="font-bold text-foreground text-sm">{turf.openingTime}-{turf.closingTime ? turf.closingTime.substring(0, 5) : ''}</p>
                       </div>
                       <div className="bg-muted/50 rounded-lg py-2">
                         <p className="text-xs text-muted-foreground">Sports</p>

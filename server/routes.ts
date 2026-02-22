@@ -310,30 +310,62 @@ export async function registerRoutes(
   });
 
   // ── ADMIN: OWNER APPROVAL ROUTES ──────────────────────────────────────────
-  // Get all pending owners
+  // Get all pending owners — reads directly from Supabase auth.users table
   app.get("/api/admin/owners/pending", async (_req, res) => {
     try {
-      const owners = await storage.getPendingOwners();
-      res.json(owners);
-    } catch (e) { res.status(500).json({ error: "Failed to fetch pending owners" }); }
+      const sql = getSql();
+      const rows = await sql`
+        SELECT id, email, raw_user_meta_data
+        FROM auth.users
+        WHERE raw_user_meta_data->>'role' = 'owner'
+          AND (raw_user_meta_data->>'ownerStatus' = 'pending' OR raw_user_meta_data->>'ownerStatus' IS NULL)
+        ORDER BY created_at DESC
+      `;
+      const mapped = rows.map((r: any) => ({
+        id: r.id,
+        username: r.id,
+        fullName: r.raw_user_meta_data?.full_name || r.email?.split('@')[0] || 'Unknown',
+        role: 'owner',
+        ownerStatus: r.raw_user_meta_data?.ownerStatus || 'pending',
+        email: r.email,
+      }));
+      res.json(mapped);
+    } catch (e: any) {
+      console.error("Fetch pending owners error:", e?.message || e);
+      res.status(500).json({ error: "Failed to fetch pending owners" });
+    }
   });
 
-  // Approve owner
-  app.patch("/api/admin/owners/:username/approve", async (req, res) => {
+  // Approve owner — updates Supabase auth metadata
+  app.patch("/api/admin/owners/:id/approve", async (req, res) => {
     try {
-      const user = await storage.approveOwner(req.params.username);
-      if (!user) return res.status(404).json({ error: "Owner not found" });
-      res.json(user);
-    } catch (e) { res.status(500).json({ error: "Failed to approve owner" }); }
+      const sql = getSql();
+      await sql`
+        UPDATE auth.users
+        SET raw_user_meta_data = raw_user_meta_data || '{"ownerStatus": "approved"}'::jsonb
+        WHERE id = ${req.params.id}
+      `;
+      res.json({ success: true, ownerStatus: "approved" });
+    } catch (e: any) {
+      console.error("Approve owner error:", e?.message || e);
+      res.status(500).json({ error: "Failed to approve owner" });
+    }
   });
 
-  // Reject owner
-  app.patch("/api/admin/owners/:username/reject", async (req, res) => {
+  // Reject owner — updates Supabase auth metadata
+  app.patch("/api/admin/owners/:id/reject", async (req, res) => {
     try {
-      const user = await storage.rejectOwner(req.params.username);
-      if (!user) return res.status(404).json({ error: "Owner not found" });
-      res.json(user);
-    } catch (e) { res.status(500).json({ error: "Failed to reject owner" }); }
+      const sql = getSql();
+      await sql`
+        UPDATE auth.users
+        SET raw_user_meta_data = raw_user_meta_data || '{"ownerStatus": "rejected"}'::jsonb
+        WHERE id = ${req.params.id}
+      `;
+      res.json({ success: true, ownerStatus: "rejected" });
+    } catch (e: any) {
+      console.error("Reject owner error:", e?.message || e);
+      res.status(500).json({ error: "Failed to reject owner" });
+    }
   });
 
   // ── ADMIN: TURF APPROVAL ROUTES ──────────────────────────────────────────
