@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertBookingSchema, insertTurfSchema, insertPaymentMethodSchema, insertReviewSchema, admins } from "@shared/schema";
-import { getDb } from "./db";
+import { getDb, getSql } from "./db";
 import { eq } from "drizzle-orm";
 import {
   getPreferences, savePreferences,
@@ -318,12 +318,11 @@ export async function registerRoutes(
   // Checks the `admins` table to verify if a given email is an admin.
   app.get("/api/auth/is-admin/:email", async (req, res) => {
     try {
-      const { getSql } = await import("./db");
       const sql = getSql();
       const rows = await sql`SELECT email FROM admins WHERE email = ${decodeURIComponent(req.params.email)} LIMIT 1`;
       res.json({ isAdmin: rows.length > 0 });
-    } catch (e) {
-      console.error("Admin check error:", e);
+    } catch (e: any) {
+      console.error("Admin check error:", e?.message || e);
       res.json({ isAdmin: false });
     }
   });
@@ -331,12 +330,11 @@ export async function registerRoutes(
   // ── GET ALL ADMINS (admin dashboard) ─────────────────────────────────────
   app.get("/api/admin/admins", async (_req, res) => {
     try {
-      const { getSql } = await import("./db");
       const sql = getSql();
       const rows = await sql`SELECT id, email, full_name, created_at FROM admins ORDER BY created_at`;
       res.json(rows);
-    } catch (e) {
-      console.error("Fetch admins error:", e);
+    } catch (e: any) {
+      console.error("Fetch admins error:", e?.message || e);
       res.status(500).json({ error: "Failed to fetch admins" });
     }
   });
