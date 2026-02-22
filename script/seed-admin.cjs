@@ -6,13 +6,18 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 async function seed() {
     const client = await pool.connect();
     try {
-        console.log("Inserting admin...");
+        // Add both admins
         await client.query(
             `INSERT INTO admins (email, full_name) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING`,
-            ["shaikmahammadshahidafrid@gmail.com", "Admin"]
+            ["shaikmahammadshahidafrid@gmail.com", "Shahid Admin"]
         );
+        await client.query(
+            `INSERT INTO admins (email, full_name) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING`,
+            ["shaikafridt1@gmail.com", "Admin 2"]
+        );
+
         const { rows } = await client.query("SELECT * FROM admins");
-        console.log("✅ Admins table contents:");
+        console.log("✅ Admins table:");
         console.table(rows);
     } finally {
         client.release();
