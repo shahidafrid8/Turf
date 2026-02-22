@@ -310,44 +310,44 @@ export async function registerRoutes(
   });
 
   // ── ADMIN: OWNER APPROVAL ROUTES ──────────────────────────────────────────
-  // Get all pending owners — reads directly from Supabase auth.users table
+  // Uses Supabase Admin API (service_role key) to query auth users directly.
+  const { createClient } = await import("@supabase/supabase-js");
+  const supabaseAdmin = createClient(
+    process.env.SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
+  // Get all pending owners
   app.get("/api/admin/owners/pending", async (_req, res) => {
     try {
-      const db = getDb();
-      const result = await db.execute(
-        sql`SELECT id, email, raw_user_meta_data
-            FROM auth.users
-            WHERE raw_user_meta_data->>'role' = 'owner'
-              AND (raw_user_meta_data->>'ownerStatus' = 'pending'
-                   OR raw_user_meta_data->>'ownerStatus' IS NULL)
-            ORDER BY created_at DESC`
-      );
-      const rows = result as any[];
-      const mapped = rows.map((r: any) => ({
-        id: r.id,
-        username: r.id,
-        fullName: r.raw_user_meta_data?.full_name || r.email?.split('@')[0] || 'Unknown',
-        role: 'owner',
-        ownerStatus: r.raw_user_meta_data?.ownerStatus || 'pending',
-        email: r.email,
-      }));
-      res.json(mapped);
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+      if (error) throw error;
+      const pending = (data?.users || [])
+        .filter((u: any) => u.user_metadata?.role === "owner" &&
+          (!u.user_metadata?.ownerStatus || u.user_metadata.ownerStatus === "pending"))
+        .map((u: any) => ({
+          id: u.id,
+          username: u.id,
+          fullName: u.user_metadata?.full_name || u.email?.split("@")[0] || "Unknown",
+          role: "owner",
+          ownerStatus: u.user_metadata?.ownerStatus || "pending",
+          email: u.email,
+        }));
+      res.json(pending);
     } catch (e: any) {
       console.error("Fetch pending owners error:", e?.message || e);
       res.status(500).json({ error: "Failed to fetch pending owners" });
     }
   });
 
-  // Approve owner — updates Supabase auth metadata
+  // Approve owner
   app.patch("/api/admin/owners/:id/approve", async (req, res) => {
     try {
-      const db = getDb();
-      const uid = req.params.id;
-      await db.execute(
-        sql`UPDATE auth.users
-            SET raw_user_meta_data = raw_user_meta_data || '{"ownerStatus": "approved"}'::jsonb
-            WHERE id = ${uid}`
-      );
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(req.params.id, {
+        user_metadata: { ownerStatus: "approved" },
+      });
+      if (error) throw error;
       res.json({ success: true, ownerStatus: "approved" });
     } catch (e: any) {
       console.error("Approve owner error:", e?.message || e);
@@ -355,16 +355,13 @@ export async function registerRoutes(
     }
   });
 
-  // Reject owner — updates Supabase auth metadata
+  // Reject owner
   app.patch("/api/admin/owners/:id/reject", async (req, res) => {
     try {
-      const db = getDb();
-      const uid = req.params.id;
-      await db.execute(
-        sql`UPDATE auth.users
-            SET raw_user_meta_data = raw_user_meta_data || '{"ownerStatus": "rejected"}'::jsonb
-            WHERE id = ${uid}`
-      );
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(req.params.id, {
+        user_metadata: { ownerStatus: "rejected" },
+      });
+      if (error) throw error;
       res.json({ success: true, ownerStatus: "rejected" });
     } catch (e: any) {
       console.error("Reject owner error:", e?.message || e);
