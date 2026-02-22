@@ -311,17 +311,23 @@ export async function registerRoutes(
 
   // ── ADMIN: OWNER APPROVAL ROUTES ──────────────────────────────────────────
   // Uses Supabase Admin API (service_role key) to query auth users directly.
-  const { createClient } = await import("@supabase/supabase-js");
-  const supabaseAdmin = createClient(
-    process.env.SUPABASE_URL || "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY || "",
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  // Lazy-init so missing key doesn't crash all routes.
+  let _supabaseAdmin: any = null;
+  function getSupabaseAdmin() {
+    if (_supabaseAdmin) return _supabaseAdmin;
+    const { createClient } = require("@supabase/supabase-js");
+    _supabaseAdmin = createClient(
+      process.env.SUPABASE_URL || "",
+      process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    return _supabaseAdmin;
+  }
 
   // Get all pending owners
   app.get("/api/admin/owners/pending", async (_req, res) => {
     try {
-      const { data, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+      const { data, error } = await getSupabaseAdmin().auth.admin.listUsers({ perPage: 1000 });
       if (error) throw error;
       const pending = (data?.users || [])
         .filter((u: any) => u.user_metadata?.role === "owner" &&
@@ -344,7 +350,7 @@ export async function registerRoutes(
   // Approve owner
   app.patch("/api/admin/owners/:id/approve", async (req, res) => {
     try {
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(req.params.id, {
+      const { error } = await getSupabaseAdmin().auth.admin.updateUserById(req.params.id, {
         user_metadata: { ownerStatus: "approved" },
       });
       if (error) throw error;
@@ -358,7 +364,7 @@ export async function registerRoutes(
   // Reject owner
   app.patch("/api/admin/owners/:id/reject", async (req, res) => {
     try {
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(req.params.id, {
+      const { error } = await getSupabaseAdmin().auth.admin.updateUserById(req.params.id, {
         user_metadata: { ownerStatus: "rejected" },
       });
       if (error) throw error;
