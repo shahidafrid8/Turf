@@ -310,26 +310,18 @@ export async function registerRoutes(
   });
 
   // ── ADMIN: OWNER APPROVAL ROUTES ──────────────────────────────────────────
-  // Uses Supabase Admin API (service_role key) to query auth users directly.
-  // Lazy-init so missing key doesn't crash all routes.
-  let _supabaseAdmin: any = null;
-  function getSupabaseAdmin() {
-    if (_supabaseAdmin) return _supabaseAdmin;
-    const { createClient } = require("@supabase/supabase-js");
-    _supabaseAdmin = createClient(
-      process.env.SUPABASE_URL || "",
-      process.env.SUPABASE_SERVICE_ROLE_KEY || "",
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-    return _supabaseAdmin;
-  }
+  // Uses direct fetch() to Supabase Admin REST API — zero dependency, zero bundling risk.
+  const SB_URL = process.env.SUPABASE_URL || "";
+  const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  const sbHeaders = { apikey: SB_SERVICE_KEY, Authorization: `Bearer ${SB_SERVICE_KEY}`, "Content-Type": "application/json" };
 
   // Get all pending owners
   app.get("/api/admin/owners/pending", async (_req, res) => {
     try {
-      const { data, error } = await getSupabaseAdmin().auth.admin.listUsers({ perPage: 1000 });
-      if (error) throw error;
-      const pending = (data?.users || [])
+      const r = await fetch(`${SB_URL}/auth/v1/admin/users?per_page=1000`, { headers: sbHeaders });
+      if (!r.ok) throw new Error(`Supabase error: ${r.status}`);
+      const { users } = await r.json() as any;
+      const pending = (users || [])
         .filter((u: any) => u.user_metadata?.role === "owner" &&
           (!u.user_metadata?.ownerStatus || u.user_metadata.ownerStatus === "pending"))
         .map((u: any) => ({
@@ -350,10 +342,11 @@ export async function registerRoutes(
   // Approve owner
   app.patch("/api/admin/owners/:id/approve", async (req, res) => {
     try {
-      const { error } = await getSupabaseAdmin().auth.admin.updateUserById(req.params.id, {
-        user_metadata: { ownerStatus: "approved" },
+      const r = await fetch(`${SB_URL}/auth/v1/admin/users/${req.params.id}`, {
+        method: "PUT", headers: sbHeaders,
+        body: JSON.stringify({ user_metadata: { ownerStatus: "approved" } }),
       });
-      if (error) throw error;
+      if (!r.ok) throw new Error(`Supabase error: ${r.status}`);
       res.json({ success: true, ownerStatus: "approved" });
     } catch (e: any) {
       console.error("Approve owner error:", e?.message || e);
@@ -364,10 +357,11 @@ export async function registerRoutes(
   // Reject owner
   app.patch("/api/admin/owners/:id/reject", async (req, res) => {
     try {
-      const { error } = await getSupabaseAdmin().auth.admin.updateUserById(req.params.id, {
-        user_metadata: { ownerStatus: "rejected" },
+      const r = await fetch(`${SB_URL}/auth/v1/admin/users/${req.params.id}`, {
+        method: "PUT", headers: sbHeaders,
+        body: JSON.stringify({ user_metadata: { ownerStatus: "rejected" } }),
       });
-      if (error) throw error;
+      if (!r.ok) throw new Error(`Supabase error: ${r.status}`);
       res.json({ success: true, ownerStatus: "rejected" });
     } catch (e: any) {
       console.error("Reject owner error:", e?.message || e);
