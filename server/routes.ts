@@ -318,9 +318,10 @@ export async function registerRoutes(
   // Checks the `admins` table to verify if a given email is an admin.
   app.get("/api/auth/is-admin/:email", async (req, res) => {
     try {
-      const db = getDb();
-      const [row] = await db.select().from(admins).where(eq(admins.email, decodeURIComponent(req.params.email)));
-      res.json({ isAdmin: !!row });
+      const { getSql } = await import("./db");
+      const sql = getSql();
+      const rows = await sql`SELECT email FROM admins WHERE email = ${decodeURIComponent(req.params.email)} LIMIT 1`;
+      res.json({ isAdmin: rows.length > 0 });
     } catch (e) {
       console.error("Admin check error:", e);
       res.json({ isAdmin: false });
@@ -330,7 +331,10 @@ export async function registerRoutes(
   // ── GET ALL ADMINS (admin dashboard) ─────────────────────────────────────
   app.get("/api/admin/admins", async (_req, res) => {
     try {
-      res.json(await getDb().select().from(admins));
+      const { getSql } = await import("./db");
+      const sql = getSql();
+      const rows = await sql`SELECT id, email, full_name, created_at FROM admins ORDER BY created_at`;
+      res.json(rows);
     } catch (e) {
       console.error("Fetch admins error:", e);
       res.status(500).json({ error: "Failed to fetch admins" });
