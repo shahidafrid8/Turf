@@ -312,5 +312,31 @@ export async function registerRoutes(
     res.json({ connected: isDatabaseAvailable() });
   });
 
+  // ── ADMIN CHECK ──────────────────────────────────────────────────────────
+  // Checks the `admins` table to verify if a given email is an admin.
+  app.get("/api/auth/is-admin/:email", async (req, res) => {
+    try {
+      const { getDb } = await import("./db");
+      const { admins } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = getDb();
+      const [row] = await db.select().from(admins).where(eq(admins.email, decodeURIComponent(req.params.email)));
+      res.json({ isAdmin: !!row });
+    } catch (e) {
+      res.json({ isAdmin: false });
+    }
+  });
+
+  // ── GET ALL ADMINS (admin dashboard) ─────────────────────────────────────
+  app.get("/api/admin/admins", async (_req, res) => {
+    try {
+      const { getDb } = await import("./db");
+      const { admins } = await import("@shared/schema");
+      res.json(await getDb().select().from(admins));
+    } catch (e) {
+      res.status(500).json({ error: "Failed to fetch admins" });
+    }
+  });
+
   return httpServer;
 }

@@ -36,16 +36,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  // Admin emails — add your admin email(s) here
-  const ADMIN_EMAILS = ['shaikmahammadshahidafrid@gmail.com'];
-
-  // Derive role/profile from user metadata
-  const isAdminEmail = !!user?.email && ADMIN_EMAILS.includes(user.email);
-  const userRole: UserRole = isAdminEmail ? 'admin' : ((user?.user_metadata?.role as UserRole) || 'user');
+  // Derive role/profile from user metadata + DB admin check
+  const userRole: UserRole = isAdmin ? 'admin' : ((user?.user_metadata?.role as UserRole) || 'user');
   const ownerStatus: OwnerStatus = (user?.user_metadata?.ownerStatus as OwnerStatus) || 'none';
   const fullName: string = user?.user_metadata?.full_name || '';
-  const profileComplete: boolean = !!user?.user_metadata?.role;
+  const profileComplete: boolean = isAdmin || !!user?.user_metadata?.role;
+
+  // Check if the user is an admin in the DB whenever user changes
+  useEffect(() => {
+    if (user?.email) {
+      fetch(`/api/auth/is-admin/${encodeURIComponent(user.email)}`)
+        .then(r => r.ok ? r.json() : { isAdmin: false })
+        .then(data => setIsAdmin(!!data.isAdmin))
+        .catch(() => setIsAdmin(false));
+    } else {
+      setIsAdmin(false);
+    }
+  }, [user?.email]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {

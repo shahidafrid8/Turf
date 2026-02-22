@@ -139,3 +139,12 @@ export const images = pgTable("images", {
 export const cities = pgTable("cities", {
   name: text("name").primaryKey(),
 });
+
+// ── ADMINS ─────────────────────────────────────────────────────────────────
+// Separate table so you can see and manage admins directly in the Supabase dashboard.
+export const admins = pgTable("admins", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  fullName: text("full_name"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
